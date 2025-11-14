@@ -14,8 +14,6 @@ import time
 from machine import SPI, Pin
 from micropython import const
 
-import config  # hardware dependent configuration
-
 
 class CC1101:
     FIFO_BUFFER_SIZE = const(64)
@@ -171,26 +169,12 @@ class CC1101:
     STATE_RXFIFO_OVERFLOW = const(0x60)  # RX FIFO has overflowed
     STATE_TXFIFO_UNDERFLOW = const(0x70)  # TX FIFO has underflowed
 
-    def __init__(self, spi_id, ss, gd02):
-        """ Create a CC1101 object connected to a microcontroller SPI channel
-
-        This class assumes the usage of SPI hardware channels and the
-        corresponding (hardwired) pins. Software SPI is not supported.
-        Pin gd02 is only used when receiving messages, not when sending.
-
-        :param int spi_id: microcontroller SPI channel id
-        :param int ss: microcontroller pin number used for slave select (SS)
-        :param int gd02: microcontroller pin number connected to port GD02 of the CC1101
-        """
-        if spi_id not in config.SPI_ID_LIST:
-            raise ValueError(f"invalid SPI id {spi_id} for {config.BOARD}")
-
-        self.miso = Pin(config.MISO_PIN_PER_SPI_ID[str(spi_id)])
-        self.ss = Pin(ss, mode=Pin.OUT)
-        self.gd02 = Pin(gd02, mode=Pin.IN)
+    def __init__(self):
+        self.miso = Pin(20)
+        self.ss = Pin(17, mode=Pin.OUT)
+        self.gd02 = Pin(2, mode=Pin.IN)
         self.deselect()
-        self.spi = SPI(spi_id, baudrate=8000000, polarity=0, phase=0, bits=8,
-                       firstbit=SPI.MSB)  # use default pins for mosi, miso and sclk
+        self.spi = SPI(1, baudrate=8000000, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=19, mosi=18, miso=20)
         self.reset()
 
     def select(self):
@@ -399,7 +383,7 @@ class CC1101:
 if __name__ == "__main__":
     # Demo the connection to a CC1101 by reading values from the chip
 
-    cc1101 = CC1101(config.SPI_ID, config.SS_PIN, config.GD02_PIN)
+    cc1101 = CC1101()
 
     # Read status byte
     status = cc1101.write_command(CC1101.SNOP)

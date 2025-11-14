@@ -5,5 +5,6 @@ flash-micropython:
 
 upload:
 	ampy -p /dev/tty.usbmodem* put src/cc1101.py
+	ampy -p /dev/tty.usbmodem* put src/main.py
 	ampy -p /dev/tty.usbmodem* ls
 	ampy -p /dev/tty.usbmodem* reset
