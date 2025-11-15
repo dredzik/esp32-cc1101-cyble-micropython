@@ -27,13 +27,48 @@ def get_crc(packet):
     crc = (crc >> 8) ^ array[tmp & 0xff]
 
   return crc
+
+def to_bits(byte):
+  return [(byte >> i) & 0x1 for i in range(8)]
+
+def to_byte(bits):
+  byte = 0
+
+  for bit in bits:
+    byte <<= 1
+    byte |= bit
+
+  return byte
+
+def serialize(packet):
+  bits = []
+  result = []
+
+  for byte in packet:
+    bits.append(0)
+    bits.extend(to_bits(byte))
+    bits.extend([1, 1, 1])
+
+  while len(bits) % 8:
+    bits.append(1)
+
+  while len(bits):
+    result.append(to_byte(bits[:8]))
+    bits = bits[8:]
+
+  result.append(0xff)
+
+  return result
   
 def get_meter_request(year, serial):
-  packet = [0x13, 0x10, 0x00, 0x45]
-  packet.append(year)
-  packet.extend(serial.to_bytes(3, 'big'))
-  packet.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
-  packet.extend(get_crc(packet).to_bytes(2, 'little'))
+  raw = [0x13, 0x10, 0x00, 0x45]
+  raw.append(year)
+  raw.extend(serial.to_bytes(3, 'big'))
+  raw.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
+  raw.extend(get_crc(raw).to_bytes(2, 'little'))
+
+  packet = [0x50, 0x00, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff]
+  packet.extend(serialize(raw))
   return packet
 
 def get_data(rf):
@@ -45,10 +80,21 @@ def get_data(rf):
   for i in range(77):
     rf.send_data(wake_up)
 
-  rf.send_data(meter_request)
+  rf.send_data(bytes(meter_request))
 
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
+
+  rf.write_command(CC1101.SFRX)
+  rf.write_register(CC1101.MCSM1, 0x0f)
+  rf.write_register(CC1101.MDMCFG2, 0x02)
+  rf.write_register(CC1101.SYNC1, 0x55)
+  rf.write_register(CC1101.SYNC0, 0x50)
+  rf.write_register(CC1101.MDMCFG4, 0xf6)
+  rf.write_register(CC1101.MDMCFG3, 0x83)
+  rf.write_register(CC1101.PKTLEN, 0x01)
+
+  rf.write_command(CC1101.SRX)
 
 def set_frequency(rf, mhz):
   freq2 = 0
