@@ -1,33 +1,6 @@
 import time
 from cc1101 import CC1101
-
-def get_crc_array():
-  crc_array = []
-
-  for i in range(256):
-    crc = 0
-    c = i
-
-    for j in range(8):
-      if (crc ^ c) & 0x0001:
-        crc = (crc >> 1) ^ 0x8408
-      else:
-        crc = crc >> 1
-      c = c >> 1
-
-    crc_array.append(crc)
-
-  return crc_array
-
-def get_crc(packet):
-  array = get_crc_array()
-  crc = 0
-
-  for byte in packet:
-    tmp = crc ^ byte
-    crc = (crc >> 8) ^ array[tmp & 0xff]
-
-  return crc
+from crc import crc
 
 def to_bits(byte):
   return [(byte >> i) & 0x1 for i in range(8)]
@@ -66,7 +39,7 @@ def get_meter_request(year, serial):
   raw.append(year)
   raw.extend(serial.to_bytes(3, 'big'))
   raw.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
-  raw.extend(get_crc(raw).to_bytes(2, 'little'))
+  raw.extend(crc(raw))
 
   packet = [0x50, 0x00, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff]
   packet.extend(serialize(raw))
