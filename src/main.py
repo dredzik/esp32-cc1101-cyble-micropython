@@ -1,15 +1,25 @@
 from cc1101 import CC1101
-import time
+
+def get_meter_request(year, serial):
+  packet = [0x13, 0x10, 0x00, 0x45]
+  packet.append(year)
+  packet.extend(serial.to_bytes(3, 'big'))
+  packet.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
+  return packet
 
 def get_data(rf):
-  wbytes = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
+  wake_up = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
+  meter_request = get_meter_request(25, 174915)
   rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
-  rf.write_burst(CC1101.TXFIFO, wbytes)
-  rf.write_command(CC1101.STX)
-  time.sleep(0.010)
-  status = rf.read_register(CC1101.MARCSTATE, CC1101.STATUS_REGISTER) & CC1101.BITS_MARCSTATE
-  print(status)
+
+  for i in range(77):
+    rf.send_data(wake_up)
+
+  rf.send_data(meter_request)
+
+  rf.write_register(CC1101.MDMCFG2, 0x02)
+  rf.write_register(CC1101.PKTCTRL0, 0x00)
 
 def set_frequency(rf, mhz):
   freq2 = 0
@@ -64,8 +74,6 @@ def set_frequency(rf, mhz):
 
   rf.write_command(CC1101.SIDLE)
   rf.write_command(CC1101.SCAL)
-
-  time.sleep(0.005)
 
 def main():
   rf = CC1101()
