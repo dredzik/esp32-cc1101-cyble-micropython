@@ -74,6 +74,8 @@ def get_meter_request(year, serial):
 def get_data(rf):
   wake_up = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
   meter_request = get_meter_request(25, 174915)
+
+  rf.write_command(CC1101.STX)
   rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
 
@@ -82,6 +84,7 @@ def get_data(rf):
 
   rf.send_data(bytes(meter_request))
 
+  rf.write_command(CC1101.SFTX)
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
 
@@ -94,6 +97,7 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTLEN, 0x01)
 
+  rf.write_command(CC1101.SIDLE)
   rf.write_command(CC1101.SRX)
 
 def set_frequency(rf, mhz):
