@@ -1,3 +1,4 @@
+import time
 from cc1101 import CC1101
 
 def get_crc_array():
@@ -75,19 +76,44 @@ def get_data(rf):
   wake_up = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
   meter_request = get_meter_request(25, 174915)
 
-  rf.write_command(CC1101.STX)
+  print(f'[+] get_data()')
+
   rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
+  rf.send_data(wake_up)
+  rf.write_command(CC1101.STX)
+  time.sleep_ms(10)
 
-  for i in range(77):
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+  print(f'[+] get_data() sending wake_up request .', end='')
+
+  for i in range(76):
     rf.send_data(wake_up)
+    print(f'.', end='')
+    time.sleep_ms(30)
 
+  print(f'')
+
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+
+  print(f'[+] get_data() sending meter request')
+  time.sleep_ms(130)
   rf.send_data(bytes(meter_request))
 
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+
+  print(f'[+] get_data() flushing tx fifo')
   rf.write_command(CC1101.SFTX)
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
 
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+
+  print(f'[+] get_data() flushing fx fifo')
   rf.write_command(CC1101.SFRX)
   rf.write_register(CC1101.MCSM1, 0x0f)
   rf.write_register(CC1101.MDMCFG2, 0x02)
@@ -97,10 +123,61 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTLEN, 0x01)
 
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+
+  print(f'[+] get_data() set receive mode')
   rf.write_command(CC1101.SIDLE)
   rf.write_command(CC1101.SRX)
 
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+
+  print(f'[+] get_data() awaiting data ready.', end='')
+  ready = 0
+
+  for i in range(2000):
+    ready = rf.ready()
+    if ready:
+      break
+
+    print('.', end='')
+    time.sleep_ms(1)
+
+  print(f'')
+
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+
+  if not ready:
+    print(f'[-] get_data() timeout awaiting data ready')
+    return
+
+  print(f'[+] get_data() reading data.', end='')
+  data = []
+
+  for i in range(2000):
+    size = rf.read_register(CC1101.RXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
+    print(size)
+    if size > 0:
+      data = rf.read_burst(CC1101.RXFIFO, size)
+      break
+    print(f'.', end='')
+    time.sleep_ms(5)
+
+  print(f'')
+  print(data)
+  
+  lqi = rf.read_register(CC1101.LQI)
+  rssi = rf.read_register(CC1101.RSSI)
+  freqest = rf.read_register(CC1101.FREQEST)
+
+  print(f'[+] get_data() lqi=0x{lqi:02x}, rssi=0x{rssi:02x}, freqest=0x{freqest:02x}')
+  
+
 def set_frequency(rf, mhz):
+  print(f"[+] set_frequency() frequency={mhz}")
+
   freq2 = 0
   freq1 = 0
   freq0 = 0
@@ -153,9 +230,19 @@ def set_frequency(rf, mhz):
 
   rf.write_command(CC1101.SIDLE)
   rf.write_command(CC1101.SCAL)
+  time.sleep_ms(5)
+
+  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
+  print(f"[+] set_frequency() marcstate=0x{marcstate:02x}")
 
 def main():
   rf = CC1101()
+  partnum = rf.read_register(CC1101.PARTNUM)
+  version = rf.read_register(CC1101.VERSION)
+
+  print(f"[+] CC1101() partnum=0x{partnum:02x} version=0x{version:02x}")
+
   set_frequency(rf, 433.820)
+  get_data(rf)
 
 main()

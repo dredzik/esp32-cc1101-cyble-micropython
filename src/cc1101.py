@@ -172,7 +172,7 @@ class CC1101:
     def __init__(self):
         self.miso = Pin(20)
         self.ss = Pin(17, mode=Pin.OUT)
-        self.gd02 = Pin(2, mode=Pin.IN)
+        self.ready = Pin(2, mode=Pin.IN)
         self.deselect()
         self.spi = SPI(1, baudrate=8000000, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=19, mosi=18, miso=20)
         self.reset()
@@ -203,6 +203,8 @@ class CC1101:
         self.spi_wait_miso()
         self.write_command(CC1101.SRES)
         time.sleep_ms(10)
+        self.write_command(CC1101.SFTX)
+        self.write_command(CC1101.SFRX)
         # self.spi_wait_miso()
         self.deselect()
 
