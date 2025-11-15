@@ -1,5 +1,25 @@
 from cc1101 import CC1101
 
+def get_crc_array():
+  crc_array = []
+
+  for i in range(256):
+    crc = 0
+    c = i
+
+    for j in range(8):
+      if (crc ^ c) & 0x0001:
+        crc = (crc >> 1) ^ 0x8408
+      else:
+        crc = crc >> 1
+      c = c >> 1
+
+    crc_array.append(crc)
+
+  return crc_array
+
+def get_crc(packet):
+  
 def get_meter_request(year, serial):
   packet = [0x13, 0x10, 0x00, 0x45]
   packet.append(year)
