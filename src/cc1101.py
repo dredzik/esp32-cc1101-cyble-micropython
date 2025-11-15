@@ -381,27 +381,3 @@ class CC1101:
             if marcstate in [CC1101.MARCSTATE_IDLE, CC1101.MARCSTATE_TXFIFO_UNDERFLOW]:
                 break
 
-
-if __name__ == "__main__":
-    # Demo the connection to a CC1101 by reading values from the chip
-
-    cc1101 = CC1101()
-
-    # Read status byte
-    status = cc1101.write_command(CC1101.SNOP)
-    print("Status byte", hex(status), bin(status))
-
-    # Read version
-    version = cc1101.read_register(CC1101.VERSION, CC1101.STATUS_REGISTER)
-    print("VERSION", hex(version))
-
-    # Prove burst and single register access deliver same results
-    burst = cc1101.read_burst(CC1101.IOCFG2, 3)
-    for i in range(len(burst)):
-        print(hex(burst[i]), end=' ')
-    print()
-
-    for register in (CC1101.IOCFG2, CC1101.IOCFG1, CC1101.IOCFG0):
-        print(hex(cc1101.read_register(register)), end=' ')
-    print()
-
