@@ -19,12 +19,21 @@ def get_crc_array():
   return crc_array
 
 def get_crc(packet):
+  array = get_crc_array()
+  crc = 0
+
+  for byte in packet:
+    tmp = crc ^ byte
+    crc = (crc >> 8) ^ array[tmp & 0xff]
+
+  return crc
   
 def get_meter_request(year, serial):
   packet = [0x13, 0x10, 0x00, 0x45]
   packet.append(year)
   packet.extend(serial.to_bytes(3, 'big'))
   packet.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
+  packet.extend(get_crc(packet).to_bytes(2, 'little'))
   return packet
 
 def get_data(rf):
