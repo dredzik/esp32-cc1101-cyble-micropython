@@ -5,28 +5,6 @@ from crc import crc
 from serialize import serialize
 
 class CC1101(cc1101.CC1101):
-  def send(self, data):
-    if self.read_register(CC1101.TXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_TX_FIFO_UNDERFLOW:
-      self.write_command(CC1101.SIDLE)
-      self.write_command(CC1101.SFTX)
-
-    self.write_command(CC1101.SIDLE)
-    self.write_burst(CC1101.TXFIFO, data)
-
-    while True:
-      marcstate = self.read_register(CC1101.MARCSTATE, CC1101.STATUS_REGISTER) & CC1101.BITS_MARCSTATE
-      if marcstate in [CC1101.MARCSTATE_IDLE, CC1101.MARCSTATE_TXFIFO_UNDERFLOW]:
-        break
-
-  def read(self):
-    data = bytearray()
-    size = self.read_register(CC1101.RXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
-
-    if size > 0:
-      data = self.read_burst(CC1101.RXFIFO, size)
-
-    return data
-
   def wait_ready(self):
     print(f'[+] wait_ready')
 
@@ -46,7 +24,7 @@ class CC1101(cc1101.CC1101):
 
     for i in range(2000):
       print(f'.', end='')
-      data.extend(self.read())
+      data.extend(self.recv())
 
       if (len(data) >= length): break
       time.sleep_ms(20)

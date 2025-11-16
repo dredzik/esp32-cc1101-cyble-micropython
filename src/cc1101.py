@@ -312,72 +312,20 @@ class CC1101:
         self.spi.write(buf)
         self.deselect()
 
-    def receive_data(self, length):
-        """ Read available bytes from the FIFO
-
-        :param int length: max number of bytes to read
-        :return bytearray: bytes read (can have len() of 0)
-        """
-        rx_bytes = self.read_register(CC1101.RXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
-
-        # Check for
-        if (self.read_register(CC1101.MARCSTATE, CC1101.STATUS_REGISTER) & CC1101.BITS_MARCSTATE) == CC1101.MARCSTATE_RXFIFO_OVERFLOW:
-            buf = bytearray()  # RX FIFO overflow: return empty array
-        else:
-            buf = self.read_burst(CC1101.RXFIFO, rx_bytes)
-
+    def send(self, data):
         self.write_command(CC1101.SIDLE)
-        self.write_command(CC1101.SFRX)  # Flush RX buffer
-        self.write_command(CC1101.SRX)  # Switch to RX state
+        self.write_burst(CC1101.TXFIFO, data)
 
-        return buf
-
-    def send_data(self, data):
-        """ Send data
-
-        :param bytearray data: bytes to send (len(data) may exceed FIFO size)
-        """
-        DATA_LEN = CC1101.FIFO_BUFFER_SIZE - 3
-
-        self.write_command(CC1101.SIDLE)
-
-        # Clear TX FIFO if needed
-        if self.read_register(CC1101.TXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_TX_FIFO_UNDERFLOW:
-            self.write_command(CC1101.SIDLE)
-            self.write_command(CC1101.SFTX)
-
-        self.write_command(CC1101.SIDLE)
-
-        length = len(data) if len(data) <= DATA_LEN else DATA_LEN
-
-        self.write_burst(CC1101.TXFIFO, data[:length])
-
-        self.write_command(CC1101.SIDLE)
-        self.write_command(CC1101.STX)  # Start sending packet
-
-        index = 0
-
-        if len(data) > DATA_LEN:
-            # More data to send
-            index += length
-
-            while index < len(data):
-                while True:
-                    tx_status = self.read_register_median_of_3(CC1101.TXBYTES | CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
-                    if tx_status <= (DATA_LEN - 2):
-                        break
-
-                length = DATA_LEN - tx_status
-                length = len(data) - index if (len(data) - index) < length else length
-
-                for i in range(length):
-                    self.write_register(CC1101.TXFIFO, data[index + i])
-
-                index += length
-
-        # Wait until transmission is finished (TXOFF_MODE is expected to be set to 0/IDLE or TXFIFO_UNDERFLOW)
         while True:
             marcstate = self.read_register(CC1101.MARCSTATE, CC1101.STATUS_REGISTER) & CC1101.BITS_MARCSTATE
             if marcstate in [CC1101.MARCSTATE_IDLE, CC1101.MARCSTATE_TXFIFO_UNDERFLOW]:
                 break
 
+    def recv(self):
+        data = bytearray()
+        size = self.read_register(CC1101.RXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
+
+        if size > 0:
+            data = self.read_burst(CC1101.RXFIFO, size)
+
+        return data
