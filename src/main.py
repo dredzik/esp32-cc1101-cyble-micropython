@@ -21,6 +21,20 @@ class CC1101(cc1101.CC1101):
       if marcstate in [CC1101.MARCSTATE_IDLE, CC1101.MARCSTATE_TXFIFO_UNDERFLOW]:
         break
 
+  def read(self):
+    data = bytearray()
+    size = self.read_register(CC1101.RXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
+
+    if size > 0:
+      data = self.read_burst(CC1101.RXFIFO, size)
+
+    self.write_command(CC1101.SIDLE)
+    self.write_command(CC1101.SFRX)
+    self.write_command(CC1101.STX)
+
+    return data
+
+
 def get_meter_request(year, serial):
   raw = [0x13, 0x10, 0x00, 0x45]
   raw.append(year)
@@ -42,7 +56,7 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
 
-  print(f'[+] Sending wake_up request .', end='')
+  print(f'[+] Sending wake_up request')
 
   for i in range(100):
     rf.send(wake_up)
@@ -66,39 +80,35 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTLEN, 0x01)
 
-  rf.write_command(CC1101.SIDLE)
-  rf.write_command(CC1101.SRX)
-
-  print(f'[+] Awaiting data.', end='')
-  ready = 0
+  print(f'[+] Waiting')
+  ready = False
 
   for i in range(2000):
+    print(f'.', end='')
     ready = rf.ready()
-    if ready:
-      break
 
-    print('.', end='')
+    if ready: break
     time.sleep_ms(20)
 
   print(f'')
 
   if not ready:
-    print(f'[-] Timeout awaiting data')
+    print(f'[-] Timeout')
     return
 
-  print(f'[+] Reading data.', end='')
+  print(f'[+] Reading')
   data = []
 
   for i in range(2000):
-    size = rf.read_register(CC1101.RXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
-    if size > 0:
-      data = rf.read_burst(CC1101.RXFIFO, size)
-      break
     print(f'.', end='')
+    data = rf.read()
+
+    if data: break
     time.sleep_ms(20)
 
   print(f'')
-  print(f'0x{data:02x}')
+  for b in data:
+    print(f'0x{b:02x}')
   
   lqi = rf.read_register(CC1101.LQI)
   rssi = rf.read_register(CC1101.RSSI)
