@@ -94,30 +94,19 @@ def get_meter_request(year, serial):
 def write_packet(rf):
   print(f'[+] write_packet')
 
-  wu_packet = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
   meter_packet = get_meter_request(25, 174915)
 
-  rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
 
+  print(f'[+] write_packet await wake up')
   rf.cmd_transmit()
-
-  print(f'[+] write_packet wake up')
-  end = time.time_ns() + 2*1000*1000*1000
-
-  while time.time_ns() < end:
-    rf.send(wu_packet)
-    print(f'.', end='')
-
-  print(f'')
+  time.sleep(2)
 
   print(f'[+] write_packet meter')
-#time.sleep_ms(150)
   rf.send(meter_packet)
 
   rf.cmd_flush_transmit()
 
-  rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
 
 def read_packet(rf, length):
