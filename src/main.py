@@ -1,8 +1,27 @@
 import time
 
-from cc1101 import CC1101
+import cc1101
 from crc import crc
 from serialize import serialize
+
+class CC1101(cc1101.CC1101):
+  def send(self, data):
+    self.write_command(CC1101.SIDLE)
+
+    if self.read_register(CC1101.TXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_TX_FIFO_UNDERFLOW:
+      self.write_command(CC1101.SFTX)
+      self.write_command(CC1101.SIDLE)
+
+    self.write_burst(CC1101.TXFIFO, data)
+    self.write_command(CC1101.SIDLE)
+
+    self.write_command(CC1101.STX)
+    time.sleep_ms(20)
+
+    while True:
+      marcstate = self.read_register(CC1101.MARCSTATE, CC1101.STATUS_REGISTER) & CC1101.BITS_MARCSTATE
+      if marcstate in [CC1101.MARCSTATE_IDLE, CC1101.MARCSTATE_TXFIFO_UNDERFLOW]:
+        break
 
 def get_meter_request(year, serial):
   raw = [0x13, 0x10, 0x00, 0x45]
@@ -13,7 +32,7 @@ def get_meter_request(year, serial):
 
   packet = [0x50, 0x00, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff]
   packet.extend(serialize(raw))
-  return packet
+  return bytes(packet)
 
 def get_data(rf):
   wake_up = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
@@ -21,40 +40,24 @@ def get_data(rf):
 
   print(f'[+] get_data()')
 
+  print(f'[+] No preamble, infinite length')
   rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
-  rf.send_data(wake_up)
-  rf.write_command(CC1101.STX)
-  time.sleep_ms(10)
 
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
-  print(f'[+] get_data() sending wake_up request .', end='')
+  print(f'[+] Sending wake_up request .', end='')
 
-  for i in range(76):
-    rf.send_data(wake_up)
+  for i in range(100):
+    rf.send(wake_up)
     print(f'.', end='')
-    time.sleep_ms(30)
 
   print(f'')
 
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
+  print(f'[+] Sending meter request')
+  rf.send(meter_request)
 
-  print(f'[+] get_data() sending meter request')
-  time.sleep_ms(130)
-  rf.send_data(bytes(meter_request))
-
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
-
-  print(f'[+] get_data() flushing tx fifo')
-  rf.write_command(CC1101.SFTX)
+  print(f'[+] 2-FSK preamble, fixed length')
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
-
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
 
   print(f'[+] get_data() flushing fx fifo')
   rf.write_command(CC1101.SFRX)
@@ -65,9 +68,6 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG4, 0xf6)
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTLEN, 0x01)
-
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
 
   print(f'[+] get_data() set receive mode')
   rf.write_command(CC1101.SIDLE)
@@ -85,12 +85,9 @@ def get_data(rf):
       break
 
     print('.', end='')
-    time.sleep_ms(1)
+    time.sleep_ms(20)
 
   print(f'')
-
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
 
   if not ready:
     print(f'[-] get_data() timeout awaiting data ready')
@@ -101,12 +98,11 @@ def get_data(rf):
 
   for i in range(2000):
     size = rf.read_register(CC1101.RXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_RX_BYTES_IN_FIFO
-    print(size)
     if size > 0:
       data = rf.read_burst(CC1101.RXFIFO, size)
       break
     print(f'.', end='')
-    time.sleep_ms(5)
+    time.sleep_ms(20)
 
   print(f'')
   print(data)
