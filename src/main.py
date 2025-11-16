@@ -54,7 +54,7 @@ class CC1101(cc1101.CC1101):
     print(f'')
 
     for b in data:
-      print(f'0x{b:02x}', end='')
+      print(f'0x{b:02x} ', end='')
 
     print(f'')
 
@@ -103,16 +103,16 @@ def write_packet(rf):
   rf.cmd_transmit()
 
   print(f'[+] write_packet wake up')
+  end = time.time_ns() + 2*1000*1000*1000
 
-  for i in range(100):
-    time.sleep_ms(20)
+  while time.time_ns() < end:
     rf.send(wu_packet)
     print(f'.', end='')
 
   print(f'')
 
   print(f'[+] write_packet meter')
-  time.sleep_ms(150)
+#time.sleep_ms(150)
   rf.send(meter_packet)
 
   rf.cmd_flush_transmit()
