@@ -15,9 +15,8 @@ def serialize(packet):
   result = []
 
   for byte in packet:
-    bits.append(0)
+    bits.extend([1, 1, 1, 0])
     bits.extend(_bits(byte))
-    bits.extend([1, 1, 1])
 
   while len(bits) % 8:
     bits.append(1)
@@ -25,7 +24,5 @@ def serialize(packet):
   while len(bits):
     result.append(_byte(bits[:8]))
     bits = bits[8:]
-
-  result.append(0xff)
 
   return result

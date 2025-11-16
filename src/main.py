@@ -32,7 +32,7 @@ class CC1101(cc1101.CC1101):
     print(f'')
 
     for b in data:
-      print(f'0x{b:02x} ', end='')
+      print(f'{b:08b} ', end='')
 
     print(f'')
 
@@ -58,21 +58,35 @@ class CC1101(cc1101.CC1101):
     self.write_command(CC1101.SIDLE)
     self.write_command(CC1101.SFTX)
 
-def get_meter_request(year, serial):
-  raw = [0x13, 0x10, 0x00, 0x45]
-  raw.append(year)
-  raw.extend(serial.to_bytes(3, 'big'))
-  raw.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
-  raw.extend(crc(raw))
+def _packet(year, serial):
+  """
+  length = 0x13 (19)
+  type = 0x10 (request)
+  spacer = 0x00
+  recipient = 0x45 + year + serial (5 bytes)
+  spacer = 0x00
+  sender = random bullshit (5 bytes)
+  spacer = 0x00
+  payload = 0x0a 0x40
+  crc (2 bytes)
+  """
+  packet = []
+  packet.extend([0x13, 0x10, 0x00, 0x45])
+  packet.append(year)
+  packet.extend(serial.to_bytes(3, 'big'))
+  packet.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
+  packet.extend(crc(packet))
 
-  packet = [0x50, 0x00, 0x00, 0x00, 0x03, 0xff, 0xff, 0xff, 0xff]
-  packet.extend(serialize(raw))
-  return bytes(packet)
+  return bytes([0x00, 0x00, 0x00, 0x00] + [0xff, 0xff, 0xff, 0xff] + serialize(packet) + [0xff, 0xff, 0xff, 0xff])
 
 def write_packet(rf):
   print(f'[+] write_packet')
 
-  meter_packet = get_meter_request(25, 174915)
+  meter_packet = _packet(25, 2500562)
+
+  for b in meter_packet:
+    print(f'{b:08b} ', end='')
+  print(f'')
 
   rf.write_register(CC1101.PKTCTRL0, 0x02)
 
@@ -93,11 +107,8 @@ def read_packet(rf, length):
   rf.write_register(CC1101.MCSM1, 0x0f)
   rf.write_register(CC1101.MDMCFG4, 0xf6)
   rf.write_register(CC1101.MDMCFG3, 0x83)
-  rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
   rf.write_register(CC1101.PKTLEN, 1)
-  rf.write_register(CC1101.SYNC1, 0x55)
-  rf.write_register(CC1101.SYNC0, 0x50)
 
   rf.cmd_receive()
 
@@ -116,8 +127,6 @@ def read_packet(rf, length):
   rf.write_register(CC1101.MDMCFG4, 0xf8)
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
-  rf.write_register(CC1101.SYNC1, 0xff)
-  rf.write_register(CC1101.SYNC0, 0xf0)
 
   rf.cmd_receive()
 
@@ -133,8 +142,6 @@ def read_packet(rf, length):
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
   rf.write_register(CC1101.PKTLEN, 38)
-  rf.write_register(CC1101.SYNC1, 0x55)
-  rf.write_register(CC1101.SYNC0, 0x00)
 
   return data
 
@@ -160,7 +167,7 @@ def set_frequency(rf, mhz):
   rf.write_register(CC1101.IOCFG2, 0x0d)
   rf.write_register(CC1101.IOCFG0, 0x06)
   rf.write_register(CC1101.FIFOTHR, 0x47)
-  rf.write_register(CC1101.SYNC1, 0x55)
+  rf.write_register(CC1101.SYNC1, 0xff)
   rf.write_register(CC1101.SYNC0, 0x00)
   rf.write_register(CC1101.PKTCTRL1, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
@@ -172,7 +179,7 @@ def set_frequency(rf, mhz):
 
   rf.write_register(CC1101.MDMCFG4, 0xf6)
   rf.write_register(CC1101.MDMCFG3, 0x83)
-  rf.write_register(CC1101.MDMCFG2, 0x02)
+  rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.MDMCFG1, 0x00)
   rf.write_register(CC1101.MDMCFG0, 0x00)
   rf.write_register(CC1101.DEVIATN, 0x15)
