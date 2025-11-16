@@ -6,17 +6,15 @@ from serialize import serialize
 
 class CC1101(cc1101.CC1101):
   def send(self, data):
-    self.write_command(CC1101.SIDLE)
-
     if self.read_register(CC1101.TXBYTES, CC1101.STATUS_REGISTER) & CC1101.BITS_TX_FIFO_UNDERFLOW:
-      self.write_command(CC1101.SFTX)
       self.write_command(CC1101.SIDLE)
+      self.write_command(CC1101.SFTX)
 
-    self.write_burst(CC1101.TXFIFO, data)
     self.write_command(CC1101.SIDLE)
+    self.write_burst(CC1101.TXFIFO, data)
 
+    self.write_command(CC1101.SIDLE)
     self.write_command(CC1101.STX)
-    time.sleep_ms(20)
 
     while True:
       marcstate = self.read_register(CC1101.MARCSTATE, CC1101.STATUS_REGISTER) & CC1101.BITS_MARCSTATE
@@ -49,6 +47,7 @@ def get_data(rf):
   for i in range(100):
     rf.send(wake_up)
     print(f'.', end='')
+    time.sleep_ms(20)
 
   print(f'')
 
@@ -59,8 +58,6 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
 
-  print(f'[+] get_data() flushing fx fifo')
-  rf.write_command(CC1101.SFRX)
   rf.write_register(CC1101.MCSM1, 0x0f)
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.SYNC1, 0x55)
@@ -69,14 +66,10 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTLEN, 0x01)
 
-  print(f'[+] get_data() set receive mode')
   rf.write_command(CC1101.SIDLE)
   rf.write_command(CC1101.SRX)
 
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f'[+] get_data() marcstate=0x{marcstate:02x}')
-
-  print(f'[+] get_data() awaiting data ready.', end='')
+  print(f'[+] Awaiting data.', end='')
   ready = 0
 
   for i in range(2000):
@@ -90,10 +83,10 @@ def get_data(rf):
   print(f'')
 
   if not ready:
-    print(f'[-] get_data() timeout awaiting data ready')
+    print(f'[-] Timeout awaiting data')
     return
 
-  print(f'[+] get_data() reading data.', end='')
+  print(f'[+] Reading data.', end='')
   data = []
 
   for i in range(2000):
@@ -105,7 +98,7 @@ def get_data(rf):
     time.sleep_ms(20)
 
   print(f'')
-  print(data)
+  print(f'0x{data:02x}')
   
   lqi = rf.read_register(CC1101.LQI)
   rssi = rf.read_register(CC1101.RSSI)
