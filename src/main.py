@@ -52,9 +52,11 @@ class CC1101(cc1101.CC1101):
       time.sleep_ms(20)
 
     print(f'')
-    print(f'Received')
+
     for b in data:
-      print(f'0x{b:02x}')
+      print(f'0x{b:02x}', end='')
+
+    print(f'')
 
     return data
 
@@ -100,7 +102,7 @@ def write_packet(rf):
 
   rf.cmd_transmit()
 
-  print(f'[+] Sending wake_up packets')
+  print(f'[+] write_packet wake up')
 
   for i in range(100):
     time.sleep_ms(20)
@@ -109,7 +111,7 @@ def write_packet(rf):
 
   print(f'')
 
-  print(f'[+] Sending meter packet')
+  print(f'[+] write_packet meter')
   time.sleep_ms(150)
   rf.send(meter_packet)
 
@@ -134,12 +136,12 @@ def read_packet(rf, length):
 
   ready = rf.wait_ready()
   if not ready:
-    print(f'[-] Timeout')
+    print(f'[-] timeout')
     return
 
   data = rf.wait_read(1)
   if not data:
-    print(f'[-] No data')
+    print(f'[-] no data')
     return
 
   rf.cmd_flush_receive()
@@ -153,7 +155,7 @@ def read_packet(rf, length):
   rf.cmd_receive()
 
   if not rf.wait_ready():
-    print(f'[-] Timeout')
+    print(f'[-] timeout')
     return
 
   data = rf.wait_read(length)
