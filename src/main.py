@@ -13,9 +13,6 @@ class CC1101(cc1101.CC1101):
     self.write_command(CC1101.SIDLE)
     self.write_burst(CC1101.TXFIFO, data)
 
-    self.write_command(CC1101.SIDLE)
-    self.write_command(CC1101.STX)
-
     while True:
       marcstate = self.read_register(CC1101.MARCSTATE, CC1101.STATUS_REGISTER) & CC1101.BITS_MARCSTATE
       if marcstate in [CC1101.MARCSTATE_IDLE, CC1101.MARCSTATE_TXFIFO_UNDERFLOW]:
@@ -93,26 +90,30 @@ def get_meter_request(year, serial):
   return bytes(packet)
 
 def write_packet(rf):
-  wake_up = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
-  meter_request = get_meter_request(25, 174915)
-
   print(f'[+] write_packet')
+
+  wu_packet = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
+  meter_packet = get_meter_request(25, 174915)
 
   rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
 
-  print(f'[+] Sending wake_up request')
+  rf.cmd_transmit()
+
+  print(f'[+] Sending wake_up packets')
 
   for i in range(100):
     time.sleep_ms(20)
-    rf.send(wake_up)
+    rf.send(wu_packet)
     print(f'.', end='')
 
   print(f'')
 
-  print(f'[+] Sending meter request')
+  print(f'[+] Sending meter packet')
   time.sleep_ms(150)
-  rf.send(meter_request)
+  rf.send(meter_packet)
+
+  rf.cmd_flush_transmit()
 
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
@@ -235,7 +236,6 @@ def main():
   set_frequency(rf, 433.820)
   write_packet(rf)
   sync_packet = read_packet(rf, 100)
-
-  print(sync_packet)
+  reading_packet = read_packet(rf, 684)
 
 main()
