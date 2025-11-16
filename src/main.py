@@ -29,11 +29,40 @@ class CC1101(cc1101.CC1101):
       data = self.read_burst(CC1101.RXFIFO, size)
 
     self.write_command(CC1101.SIDLE)
-    self.write_command(CC1101.SFRX)
-    self.write_command(CC1101.STX)
+    self.write_command(CC1101.SRX)
 
     return data
 
+  def wait_ready(self):
+    print(f'[+] wait_ready')
+
+    for i in range(2000):
+      print(f'.', end='')
+      ready = self.ready()
+
+      if ready: break
+      time.sleep_ms(20)
+
+    print(f'')
+    return ready
+
+  def wait_read(self, length):
+    print(f'[+] wait_read length={length}')
+    data = []
+
+    for i in range(2000):
+      print(f'.', end='')
+      data.extend(self.read())
+
+      if (len(data) >= length): break
+      time.sleep_ms(5)
+
+    print(f'')
+    print(f'Received')
+    for b in data:
+      print(f'0x{b:02x}')
+
+    return data
 
 def get_meter_request(year, serial):
   raw = [0x13, 0x10, 0x00, 0x45]
@@ -80,42 +109,30 @@ def get_data(rf):
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTLEN, 0x01)
 
-  print(f'[+] Waiting')
-  ready = False
-
-  for i in range(2000):
-    print(f'.', end='')
-    ready = rf.ready()
-
-    if ready: break
-    time.sleep_ms(20)
-
-  print(f'')
-
+  ready = rf.wait_ready()
   if not ready:
     print(f'[-] Timeout')
     return
 
-  print(f'[+] Reading')
-  data = []
+  data = rf.wait_read(1)
+  if not data:
+    print(f'[-] No data')
+    return
 
-  for i in range(2000):
-    print(f'.', end='')
-    data = rf.read()
+  rf.write_register(CC1101.SYNC1, 0xff)
+  rf.write_register(CC1101.SYNC0, 0xf0)
+  rf.write_register(CC1101.MDMCFG4, 0xf8)
+  rf.write_register(CC1101.MDMCFG3, 0x83)
+  rf.write_register(CC1101.PKTCTRL0, 0x02)
 
-    if data: break
-    time.sleep_ms(20)
+  if not rf.wait_ready():
+    print(f'[-] Timeout')
+    return
 
-  print(f'')
-  for b in data:
-    print(f'0x{b:02x}')
-  
-  lqi = rf.read_register(CC1101.LQI)
-  rssi = rf.read_register(CC1101.RSSI)
-  freqest = rf.read_register(CC1101.FREQEST)
-
-  print(f'[+] get_data() lqi=0x{lqi:02x}, rssi=0x{rssi:02x}, freqest=0x{freqest:02x}')
-  
+  data = rf.wait_read(100)
+  if not data:
+    print(f'[-] No data')
+    return
 
 def set_frequency(rf, mhz):
   print(f"[+] set_frequency() frequency={mhz}")
