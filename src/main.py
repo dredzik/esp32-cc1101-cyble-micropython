@@ -28,9 +28,6 @@ class CC1101(cc1101.CC1101):
     if size > 0:
       data = self.read_burst(CC1101.RXFIFO, size)
 
-    self.write_command(CC1101.SIDLE)
-    self.write_command(CC1101.SRX)
-
     return data
 
   def wait_ready(self):
@@ -55,7 +52,7 @@ class CC1101(cc1101.CC1101):
       data.extend(self.read())
 
       if (len(data) >= length): break
-      time.sleep_ms(5)
+      time.sleep_ms(20)
 
     print(f'')
     print(f'Received')
@@ -63,6 +60,26 @@ class CC1101(cc1101.CC1101):
       print(f'0x{b:02x}')
 
     return data
+
+  def cmd_receive(self):
+    print(f'[+] cmd_receive')
+    self.write_command(CC1101.SIDLE)
+    self.write_command(CC1101.SRX)
+
+  def cmd_flush_receive(self):
+    print(f'[+] cmd_flush_receive')
+    self.write_command(CC1101.SIDLE)
+    self.write_command(CC1101.SFRX)
+
+  def cmd_transmit(self):
+    print(f'[+] cmd_transmit')
+    self.write_command(CC1101.SIDLE)
+    self.write_command(CC1101.STX)
+
+  def cmd_flush_transmit(self):
+    print(f'[+] cmd_flush_transmit')
+    self.write_command(CC1101.SIDLE)
+    self.write_command(CC1101.SFTX)
 
 def get_meter_request(year, serial):
   raw = [0x13, 0x10, 0x00, 0x45]
@@ -75,39 +92,44 @@ def get_meter_request(year, serial):
   packet.extend(serialize(raw))
   return bytes(packet)
 
-def get_data(rf):
+def write_packet(rf):
   wake_up = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55])
   meter_request = get_meter_request(25, 174915)
 
-  print(f'[+] get_data()')
+  print(f'[+] write_packet')
 
-  print(f'[+] No preamble, infinite length')
   rf.write_register(CC1101.MDMCFG2, 0x00)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
 
   print(f'[+] Sending wake_up request')
 
   for i in range(100):
+    time.sleep_ms(20)
     rf.send(wake_up)
     print(f'.', end='')
-    time.sleep_ms(20)
 
   print(f'')
 
   print(f'[+] Sending meter request')
+  time.sleep_ms(150)
   rf.send(meter_request)
 
-  print(f'[+] 2-FSK preamble, fixed length')
   rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
 
+def read_packet(rf, length):
+  print(f'[+] read_packet length={length}')
+
   rf.write_register(CC1101.MCSM1, 0x0f)
-  rf.write_register(CC1101.MDMCFG2, 0x02)
-  rf.write_register(CC1101.SYNC1, 0x55)
-  rf.write_register(CC1101.SYNC0, 0x50)
   rf.write_register(CC1101.MDMCFG4, 0xf6)
   rf.write_register(CC1101.MDMCFG3, 0x83)
-  rf.write_register(CC1101.PKTLEN, 0x01)
+  rf.write_register(CC1101.MDMCFG2, 0x02)
+  rf.write_register(CC1101.PKTCTRL0, 0x00)
+  rf.write_register(CC1101.PKTLEN, 1)
+  rf.write_register(CC1101.SYNC1, 0x55)
+  rf.write_register(CC1101.SYNC0, 0x50)
+
+  rf.cmd_receive()
 
   ready = rf.wait_ready()
   if not ready:
@@ -119,23 +141,35 @@ def get_data(rf):
     print(f'[-] No data')
     return
 
-  rf.write_register(CC1101.SYNC1, 0xff)
-  rf.write_register(CC1101.SYNC0, 0xf0)
+  rf.cmd_flush_receive()
+
   rf.write_register(CC1101.MDMCFG4, 0xf8)
   rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
+  rf.write_register(CC1101.SYNC1, 0xff)
+  rf.write_register(CC1101.SYNC0, 0xf0)
+
+  rf.cmd_receive()
 
   if not rf.wait_ready():
     print(f'[-] Timeout')
     return
 
-  data = rf.wait_read(100)
-  if not data:
-    print(f'[-] No data')
-    return
+  data = rf.wait_read(length)
+
+  rf.cmd_flush_receive()
+
+  rf.write_register(CC1101.MDMCFG4, 0xf6)
+  rf.write_register(CC1101.MDMCFG3, 0x83)
+  rf.write_register(CC1101.PKTCTRL0, 0x00)
+  rf.write_register(CC1101.PKTLEN, 38)
+  rf.write_register(CC1101.SYNC1, 0x55)
+  rf.write_register(CC1101.SYNC0, 0x00)
+
+  return data
 
 def set_frequency(rf, mhz):
-  print(f"[+] set_frequency() frequency={mhz}")
+  print(f"[+] set_frequency frequency={mhz}")
 
   freq2 = 0
   freq1 = 0
@@ -191,9 +225,6 @@ def set_frequency(rf, mhz):
   rf.write_command(CC1101.SCAL)
   time.sleep_ms(5)
 
-  marcstate = rf.read_register(CC1101.MARCSTATE) & CC1101.BITS_MARCSTATE
-  print(f"[+] set_frequency() marcstate=0x{marcstate:02x}")
-
 def main():
   rf = CC1101()
   partnum = rf.read_register(CC1101.PARTNUM)
@@ -202,6 +233,9 @@ def main():
   print(f"[+] CC1101() partnum=0x{partnum:02x} version=0x{version:02x}")
 
   set_frequency(rf, 433.820)
-  get_data(rf)
+  write_packet(rf)
+  sync_packet = read_packet(rf, 100)
+
+  print(sync_packet)
 
 main()
