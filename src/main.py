@@ -23,8 +23,12 @@ class CC1101(cc1101.CC1101):
     data = []
 
     for i in range(2000):
-      print(f'.', end='')
-      data.extend(self.recv())
+      recv = self.recv()
+      if recv:
+        print('+', end='')
+      else:
+        print('.', end='')
+      data.extend(recv)
 
       if (len(data) >= length): break
       time.sleep_ms(20)
@@ -88,6 +92,8 @@ def write_packet(rf):
     print(f'{b:08b} ', end='')
   print(f'')
 
+  rf.write_register(CC1101.MDMCFG2, 0x00)
+  rf.write_register(CC1101.MDMCFG4, 0xf6)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
 
   print(f'[+] write_packet await wake up')
@@ -106,9 +112,11 @@ def read_packet(rf, length):
 
   rf.write_register(CC1101.MCSM1, 0x0f)
   rf.write_register(CC1101.MDMCFG4, 0xf6)
-  rf.write_register(CC1101.MDMCFG3, 0x83)
+  rf.write_register(CC1101.MDMCFG2, 0x02)
   rf.write_register(CC1101.PKTCTRL0, 0x00)
   rf.write_register(CC1101.PKTLEN, 1)
+  rf.write_register(CC1101.SYNC1, 0x55)
+  rf.write_register(CC1101.SYNC0, 0x55)
 
   rf.cmd_receive()
 
@@ -125,8 +133,9 @@ def read_packet(rf, length):
   rf.cmd_flush_receive()
 
   rf.write_register(CC1101.MDMCFG4, 0xf8)
-  rf.write_register(CC1101.MDMCFG3, 0x83)
   rf.write_register(CC1101.PKTCTRL0, 0x02)
+  rf.write_register(CC1101.SYNC1, 0xff)
+  rf.write_register(CC1101.SYNC0, 0xff)
 
   rf.cmd_receive()
 
@@ -137,11 +146,6 @@ def read_packet(rf, length):
   data = rf.wait_read(length)
 
   rf.cmd_flush_receive()
-
-  rf.write_register(CC1101.MDMCFG4, 0xf6)
-  rf.write_register(CC1101.MDMCFG3, 0x83)
-  rf.write_register(CC1101.PKTCTRL0, 0x00)
-  rf.write_register(CC1101.PKTLEN, 38)
 
   return data
 

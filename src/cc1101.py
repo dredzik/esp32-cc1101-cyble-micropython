@@ -174,7 +174,7 @@ class CC1101:
         self.ss = Pin(17, mode=Pin.OUT)
         self.ready = Pin(2, mode=Pin.IN)
         self.deselect()
-        self.spi = SPI(1, baudrate=8000000, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=19, mosi=18, miso=20)
+        self.spi = SPI(1, baudrate=500000, polarity=0, phase=0, bits=8, firstbit=SPI.MSB, sck=19, mosi=18, miso=20)
         self.reset()
 
     def select(self):
