@@ -1,4 +1,4 @@
-# ESP32 + CC1101 + Everblu water meter + Micropython
+# ESP32 + CC1101 + Cyble water meter + Micropython
 
 This is a micropython implementation of the [genestealer/everblu-meters-esp8266-improved](https://github.com/genestealer/everblu-meters-esp8266-improved) project using cc1101 driver of the [erikdelange/ITHO-CVU-controller-in-MicroPython](https://github.com/erikdelange/ITHO-CVU-controller-in-MicroPython) project. The current state is as follows:
 
