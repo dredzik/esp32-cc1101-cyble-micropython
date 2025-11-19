@@ -81,12 +81,15 @@ def _packet(year, serial):
   packet.extend([0x00, 0x45, 0x20, 0x0a, 0x50, 0x14, 0x00, 0x0a, 0x40])
   packet.extend(crc(packet))
 
-  return bytes([0x00, 0x00, 0x00, 0x00] + [0xff, 0xff, 0xff, 0xff] + serialize(packet) + [0xff, 0xff, 0xff, 0xff])
+  return bytes(serialize(packet))
 
 def write_packet(rf):
   print(f'[+] write_packet')
 
-  meter_packet = _packet(25, 2500562)
+  METER_YEAR = 00
+  METER_SERIAL = 000000
+
+  meter_packet = _packet(METER_YEAR, METER_SERIAL)
 
   for b in meter_packet:
     print(f'{b:08b} ', end='')
