@@ -33,14 +33,14 @@ Is actually just a manual implementation of the `0x00 0xff` sync word that can b
 
 ```
 >>> bin(0x50)
-'0b1010000'
+'0b01010000'
 ```
 
-If you shift left by 3 bits, you will get 0x00, with b101 being most likely part of the original preamble (0x55).
+If you shift left by 4 bits, you will get 0x00, with b101 being most likely part of the original preamble (0x55).
 
 ```
 >>> bin(0x55)
-'0b1010101'
+'0b01010101'
 ```
 
 Then if you look at 0x03 and shift it right by 2 bits, you'll just get start of 0xff. If we assume that the creators of the Everblu water meter are sane, then it is more likely that the 14ms of zeroes followed by 14ms of ones is just the sync word `0x00 0xff` in a sample rate that is slower than what the author assumed. I have therefore removed the custom implementation and instead set the CC1101 to what it needs to be.
