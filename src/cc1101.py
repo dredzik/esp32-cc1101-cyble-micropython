@@ -6,7 +6,8 @@
 # https://github.com/SpaceTeddy/CC1101/blob/master/cc1100_raspi.cpp
 # https://github.com/SpaceTeddy/CC1101/blob/master/cc1100_raspi.h
 #
-# Copyright 2021 (c) Erik de Lange
+# Original version: Copyright 2021 (c) Erik de Lange
+# Modified version: Copyright 2025 (c) Adam Kuczyński
 # Released under MIT license
 
 import time
