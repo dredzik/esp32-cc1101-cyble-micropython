@@ -45,4 +45,4 @@ If you shift left by 4 bits, you will get 0x00, with b101 being most likely part
 
 Then if you look at 0x03 and shift it right by 2 bits, you'll just get start of 0xff. If we assume that the creators of the Everblu water meter are sane, then it is more likely that the 14ms of zeroes followed by 14ms of ones is just the sync word `0x00 0xff` in a sample rate that is slower than what the author assumed. I have therefore removed the custom implementation and instead set the CC1101 to what it needs to be.
 
-Also after we did all this, the serialization should now look differently and instead of adding a single 0 bit before and 3x1 bit after each byte, we just add `b1110` before each byte to the same effect. That makes building of the original request packet significantly easier and less insane.
+Also after all this, you can simplify the serialization: instead of adding a single 0 bit before and 3x1 bit after each byte, just add `b1110` before each byte to the same effect. That makes building of the original request packet significantly easier and less weird.
