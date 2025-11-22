@@ -46,3 +46,17 @@ If you shift left by 4 bits, you will get 0x00, with b101 being most likely part
 Then if you look at 0x03 and shift it right by 2 bits, you'll just get start of 0xff. If we assume that the creators of the Everblu water meter are sane, then it is more likely that the 14ms of zeroes followed by 14ms of ones is just the sync word `0x00 0xff` in a sample rate that is slower than what the author assumed. I have therefore removed the custom implementation and instead set the CC1101 to what it needs to be.
 
 Also after all this, you can simplify the serialization: instead of adding a single 0 bit before and 3x1 bit after each byte, just add `b1110` before each byte to the same effect. That makes building of the original request packet significantly easier and less weird.
+
+## Pinout
+
+```
+  CC1101    -> ESP32C6
+1 GND       -> GND
+2 VCC       -> 3V3
+3 GD00      -> D0 GPIO0
+4 CSN       -> D7 GPIO17
+5 SCK       -> D8 GPIO19
+6 MOSI      -> D10 GPIO18
+7 MISO/GD01 -> D9 GPIO20
+8 GD02      -> D2 GPIO2
+```
